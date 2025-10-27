@@ -5,13 +5,20 @@ import cors from "cors";
 
 dotenv.config();
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "https://musicmania.vercel.app"
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI;     // e.g. http://localhost:3000/callback
-const FRONTEND_URI = process.env.FRONTEND_URI;     // e.g. http://127.0.0.1:5500
+const REDIRECT_URI = process.env.REDIRECT_URI;     
+const FRONTEND_URI = process.env.FRONTEND_URI;    
 
 // ====== 1. LOGIN - redirect to Spotify authorize page ======
 app.get("/login", (req, res) => {
