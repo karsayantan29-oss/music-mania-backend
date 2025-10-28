@@ -13,23 +13,51 @@ const PORT = process.env.PORT || 3001;
 // ✅ Free Music Archive (FMA) feed (no API key needed)
 app.get("/api/music", async (req, res) => {
   try {
-    const url = "https://cdn.jsdelivr.net/gh/publicdata/music-sample-db@main/fma_tracks.json";
-    console.log("Fetching:", url);
+    const query = (req.query.q || "chill").toLowerCase();
+    console.log(`🎧 Fetching open FMA dataset for query: ${query}`);
 
+    const url = "https://raw.githubusercontent.com/OpenDataDE/FreeMusicArchiveDataset/master/track_sample.json";
     const response = await fetch(url);
-    console.log("Response status:", response.status, response.statusText);
 
-    const text = await response.text();
-    console.log("First 200 chars of body:", text.slice(0, 200));
+    console.log("Response status:", response.status);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: "Failed to fetch FMA dataset" });
+    }
 
-    // Try to parse JSON
-    const data = JSON.parse(text);
-    console.log("Parsed data length:", Array.isArray(data) ? data.length : "not array");
+    const data = await response.json();
 
-    res.json(data.slice(0, 5));
+    // Validate data
+    if (!Array.isArray(data)) {
+      console.error("❌ Invalid format:", data);
+      return res.status(500).json({ error: "Invalid data format" });
+    }
+
+    // Filter and simplify
+    const filtered = data.filter(
+      (t) =>
+        (t.track_title && t.track_title.toLowerCase().includes(query)) ||
+        (t.artist_name && t.artist_name.toLowerCase().includes(query))
+    );
+
+    const tracks = (filtered.length ? filtered : data.slice(0, 10)).map((t) => ({
+      id: t.track_id || Math.random().toString(36).substring(7),
+      title: t.track_title,
+      artist: t.artist_name,
+      genre: t.tags || "Unknown",
+      audio_url:
+        t.track_listens > 0
+          ? `https://files.freemusicarchive.org/storage-freemusicarchive-org/music/${encodeURIComponent(
+              t.artist_name
+            )}/${encodeURIComponent(t.album_title || "Unknown")}/${encodeURIComponent(
+              t.track_title
+            )}.mp3`
+          : "",
+    }));
+
+    res.json(tracks);
   } catch (error) {
-    console.error("Detailed fetch error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error fetching tracks:", error);
+    res.status(500).json({ error: "Error fetching tracks" });
   }
 });
 // ✅ Start server
