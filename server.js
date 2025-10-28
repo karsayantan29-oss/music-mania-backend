@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 
 dotenv.config();
+
 const app = express();
 app.use(cors({
   origin: [
@@ -15,30 +16,33 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ====== Pixabay Music Proxy Route ======
-const PIXABAY_KEY = process.env.PIXABAY_KEY;
-
+// ✅ Route to fetch music from Pixabay
 app.get("/api/music", async (req, res) => {
+  const query = req.query.q || "chill";
+  const PIXABAY_KEY = process.env.PIXABAY_KEY;
+
+  const url = `https://pixabay.com/api/music/?key=${PIXABAY_KEY}&q=${encodeURIComponent(query)}&per_page=10`;
+  console.log("🔍 Fetching:", url);
+
   try {
-    const query = req.query.q || "chill";
-    const url = `https://pixabay.com/api/music/?key=${PIXABAY_KEY}&q=${encodeURIComponent(query)}&per_page=10`;
-    console.log("🔍 Fetching from Pixabay:", url);
     const response = await fetch(url);
     const data = await response.json();
-   console.log("✅ Pixabay response:", data);
-   
+
+    // Check if Pixabay returned an error
+    if (data.error) {
+      console.error("❌ Pixabay API error:", data);
+      return res.status(500).json({ error: data.error });
+    }
+
     res.json(data);
-  } catch (error) {
-    console.error("Pixabay fetch error:", error);
+  } catch (err) {
+    console.error("❌ Fetch failed:", err);
     res.status(500).json({ error: "Failed to fetch music" });
   }
 });
 
-// ====== Test route ======
-app.get("/", (req, res) => {
-  res.send("🎧 Music Mania Backend (Pixabay API connected)");
-});
+// Test route
+app.get("/", (req, res) => res.send("🎧 Music Mania Backend (Pixabay API connected)"));
 
-// ====== Start Server ======
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`✅ Backend running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`✅ Backend running on port ${PORT}`));
