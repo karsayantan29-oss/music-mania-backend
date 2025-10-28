@@ -9,30 +9,30 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3001;
 
-// 🎵 Free Music Archive API (no key needed)
+// ✅ Free Music Archive (FMA) API
 app.get("/api/music", async (req, res) => {
   try {
     const query = req.query.q || "chill";
-    console.log("🔍 Fetching from FMA:", query);
+    console.log("🔍 Fetching from Free Music Archive for query:", query);
 
-    const url = `https://freemusicarchive.org/featured.json`;
+    const url = `https://freemusicarchive.org/api/trackSearch?q=${encodeURIComponent(query)}&limit=10`;
     const response = await fetch(url);
     const data = await response.json();
 
-    // Simplify results
-    const tracks = (data?.dataset || [])
-      .filter(t => t?.track_title && t?.track_url && t?.artist_name)
-      .map(t => ({
-        title: t.track_title,
-        artist: t.artist_name,
-        url: t.track_url,
-        genre: t.tags || "",
-      }));
+    if (!data || !data.aTracks) {
+      return res.status(500).json({ error: "Invalid FMA API response" });
+    }
 
-    res.json(tracks.slice(0, 10));
+    const tracks = data.aTracks.map(track => ({
+      title: track.track_title,
+      artist: track.artist_name,
+      url: track.track_url,
+    }));
+
+    res.json(tracks);
   } catch (err) {
     console.error("❌ Error fetching from FMA:", err);
-    res.status(500).json({ error: "Failed to fetch from FMA" });
+    res.status(500).json({ error: "Failed to fetch music" });
   }
 });
 
