@@ -16,35 +16,37 @@ app.get("/api/music", async (req, res) => {
     const query = (req.query.q || "chill").toLowerCase();
     console.log(`🎧 Fetching open music feed for query: ${query}`);
 
-    // ✅ Use a static JSON feed with real MP3 URLs
-    const url = "https://raw.githubusercontent.com/shalvah/fma-sample-data/master/tracks.json";
+    // ✅ Use a verified, CORS-safe JSON feed
+    const url = "https://cdn.jsdelivr.net/gh/publicdata/music-sample-db@main/fma_tracks.json";
     const response = await fetch(url);
     const data = await response.json();
 
     if (!Array.isArray(data)) {
-      console.error("❌ Invalid response:", data);
+      console.error("❌ Invalid response format:", data);
       return res.status(500).json({ error: "Invalid data format from source" });
     }
 
-    // Filter by query
+    // Filter by query keyword
     const filtered = data.filter(
       (t) =>
         (t.title && t.title.toLowerCase().includes(query)) ||
         (t.artist && t.artist.toLowerCase().includes(query))
     );
 
-    // Clean up data
     const tracks = (filtered.length ? filtered : data.slice(0, 10)).map((t) => ({
-      id: t.track_id || Math.random().toString(36).substring(7),
-      title: t.title || "Unknown Title",
+      id: t.id || Math.random().toString(36).substring(7),
+      title: t.title || "Untitled",
       artist: t.artist || "Unknown Artist",
       genre: t.genre || "Misc",
-      audio_url: t.audio_url || t.url || "",
+      audio_url: t.audio_url || "",
+      image_url:
+        t.image_url ||
+        "https://upload.wikimedia.org/wikipedia/commons/4/4f/FMA_logo.png",
     }));
 
     res.json(tracks);
   } catch (error) {
-    console.error("❌ Error fetching tracks:", error);
+    console.error("❌ Error fetching tracks:", error.message);
     res.status(500).json({ error: "Error fetching tracks" });
   }
 });
