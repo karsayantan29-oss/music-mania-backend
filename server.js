@@ -22,10 +22,11 @@ app.get("/api/music", async (req, res) => {
   try {
     const query = req.query.q || "chill";
     const url = `https://pixabay.com/api/music/?key=${PIXABAY_KEY}&q=${encodeURIComponent(query)}&per_page=10`;
-
+    console.log("🔍 Fetching from Pixabay:", url);
     const response = await fetch(url);
     const data = await response.json();
-
+   console.log("✅ Pixabay response:", data);
+   
     res.json(data);
   } catch (error) {
     console.error("Pixabay fetch error:", error);
