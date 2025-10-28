@@ -1,48 +1,43 @@
 import express from "express";
 import fetch from "node-fetch";
-import dotenv from "dotenv";
 import cors from "cors";
+import dotenv from "dotenv";
 
 dotenv.config();
-
 const app = express();
-app.use(cors({
-  origin: [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-    "https://musicmania.vercel.app"
-  ],
-  credentials: true
-}));
-app.use(express.json());
+app.use(cors());
 
-// ✅ Route to fetch music from Pixabay
+const PORT = process.env.PORT || 3001;
+
+// 🎵 Free Music Archive API (no key needed)
 app.get("/api/music", async (req, res) => {
-  const query = req.query.q || "chill";
-  const PIXABAY_KEY = process.env.PIXABAY_KEY;
-
-  const url = `https://pixabay.com/api/music/?key=${PIXABAY_KEY}&q=${encodeURIComponent(query)}&per_page=10`;
-  console.log("🔍 Fetching:", url);
-
   try {
+    const query = req.query.q || "chill";
+    console.log("🔍 Fetching from FMA:", query);
+
+    const url = `https://freemusicarchive.org/featured.json`;
     const response = await fetch(url);
     const data = await response.json();
 
-    // Check if Pixabay returned an error
-    if (data.error) {
-      console.error("❌ Pixabay API error:", data);
-      return res.status(500).json({ error: data.error });
-    }
+    // Simplify results
+    const tracks = (data?.dataset || [])
+      .filter(t => t?.track_title && t?.track_url && t?.artist_name)
+      .map(t => ({
+        title: t.track_title,
+        artist: t.artist_name,
+        url: t.track_url,
+        genre: t.tags || "",
+      }));
 
-    res.json(data);
+    res.json(tracks.slice(0, 10));
   } catch (err) {
-    console.error("❌ Fetch failed:", err);
-    res.status(500).json({ error: "Failed to fetch music" });
+    console.error("❌ Error fetching from FMA:", err);
+    res.status(500).json({ error: "Failed to fetch from FMA" });
   }
 });
 
-// Test route
-app.get("/", (req, res) => res.send("🎧 Music Mania Backend (Pixabay API connected)"));
+app.get("/", (req, res) => {
+  res.send("🎧 Music Mania Backend (Free Music Archive connected)");
+});
 
-const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`✅ Backend running on port ${PORT}`));
