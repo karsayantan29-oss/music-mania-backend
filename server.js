@@ -41,7 +41,7 @@ app.get("/api/music", async (req, res) => {
           t.artwork?.["480x480"] ||
           t.artwork?.["150x150"] ||
           "https://via.placeholder.com/300x300?text=No+Image",
-        audio_url: t.stream_url, // direct streaming URL
+        audio_url: `https://audius-discovery-2.cdn.audius.co/v1/tracks/${t.id}/stream`,
       }));
 
     console.log(`✅ Found ${tracks.length} tracks for "${query}"`);
