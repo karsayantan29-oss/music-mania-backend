@@ -14,55 +14,35 @@ const PORT = process.env.PORT || 3001;
 app.get("/api/music", async (req, res) => {
   try {
     const query = (req.query.q || "chill").toLowerCase();
-    console.log(`🎧 Serving local sample music for query: ${query}`);
+    console.log(`🎧 Fetching from Free Music Archive for: ${query}`);
 
-    // ✅ Local sample list (real playable MP3s from Free Music Archive)
-    const allTracks = [
-      {
-        id: "1",
-        title: "Chillwave Sunrise",
-        artist: "Loyalty Freak Music",
-        genre: "Electronic",
-        audio_url:
-          "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Loyalty_Freak_Music/LOFI_and_LAYERS/Loyalty_Freak_Music_-_01_-_Chillwave_Sunrise.mp3",
-      },
-      {
-        id: "2",
-        title: "Ambient Dreamscape",
-        artist: "Kabbalistic Village",
-        genre: "Ambient",
-        audio_url:
-          "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Kabbalistic_Village/Meditations/Kabbalistic_Village_-_01_-_Ambient_Dreamscape.mp3",
-      },
-      {
-        id: "3",
-        title: "Night Ride",
-        artist: "Scott Holmes Music",
-        genre: "Cinematic",
-        audio_url:
-          "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Scott_Holmes_Music/Energy/Scott_Holmes_Music_-_01_-_Night_Ride.mp3",
-      },
-      {
-        id: "4",
-        title: "Peaceful Piano",
-        artist: "Kevin MacLeod",
-        genre: "Classical",
-        audio_url:
-          "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Kevin_MacLeod/Classical_Sampler/Kevin_MacLeod_-_Peaceful_Piano.mp3",
-      },
-    ];
+    // Fetch Free Music Archive JSON feed (always public and real MP3s)
+    const response = await fetch("https://freemusicarchive.org/featured.json");
+    const data = await response.json();
 
-    const filtered = allTracks.filter(
-      (t) =>
-        t.title.toLowerCase().includes(query) ||
-        t.artist.toLowerCase().includes(query) ||
-        t.genre.toLowerCase().includes(query)
-    );
+    if (!data || !data.aTracks) throw new Error("Invalid response from FMA");
 
-    res.json(filtered.length ? filtered : allTracks);
-  } catch (error) {
-    console.error("❌ Local track error:", error);
-    res.status(500).json({ error: "Server error" });
+    // Filter and format results
+    const tracks = data.aTracks
+      .filter(
+        (t) =>
+          t.track_title.toLowerCase().includes(query) ||
+          t.artist_name.toLowerCase().includes(query) ||
+          t.genre_title.toLowerCase().includes(query)
+      )
+      .map((t, i) => ({
+        id: t.track_id || i.toString(),
+        title: t.track_title,
+        artist: t.artist_name,
+        genre: t.genre_title || "Unknown",
+        audio_url: t.track_url || t.track_listen_url,
+        image_url: t.album_image_file || null,
+      }));
+
+    res.json(tracks.length ? tracks : data.aTracks.slice(0, 20));
+  } catch (err) {
+    console.error("❌ Music API Error:", err);
+    res.status(500).json({ error: "Failed to fetch music" });
   }
 });
 // ✅ Start server
