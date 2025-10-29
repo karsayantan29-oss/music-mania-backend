@@ -11,28 +11,33 @@ app.use(cors());
 const PORT = process.env.PORT || 3001;
 
 // ✅ Fetch songs from Audius API (no API key needed)
-app.get("/api/trending", async (req, res) => {
+app.get("/api/music", async (req, res) => {
   try {
-    console.log("🔥 Fetching trending songs...");
-    const url = "https://discoveryprovider.audius.co/v1/tracks/trending?app_name=MusicMania&limit=20";
+    const query = req.query.q || "chill";
+    console.log("🔍 Searching for:", query);
+
+    const url = `https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(
+      query
+    )}&app_name=MusicMania&limit=20`;
+
     const response = await fetch(url);
     const json = await response.json();
 
     if (!json || !json.data) return res.json([]);
 
-    const tracks = json.data.map(t => ({
+    const tracks = json.data.map((t) => ({
       id: t.id,
       title: t.title,
-      artist: t.user?.name || "Unknown Artist",
-      genre: t.genre || "Unknown",
-      artwork: t.artwork?.['150x150'] || t.artwork?.['480x480'] || "",
+      artist: t.user?.name || "Unknown",
+      artwork: t.artwork?.["150x150"] || t.artwork?.["480x480"] || "",
+      genre: t.genre || "",
       audio_url: `https://audius-discovery-2.cdn.audius.co/v1/tracks/${t.id}/stream`,
     }));
 
     res.json(tracks);
   } catch (err) {
-    console.error("❌ Trending fetch failed:", err);
-    res.status(500).json({ error: "Failed to fetch trending songs" });
+    console.error("❌ Music fetch failed:", err);
+    res.status(500).json({ error: "Failed to fetch music" });
   }
 });
 // ✅ Base route for testing
