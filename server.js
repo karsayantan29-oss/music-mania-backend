@@ -20,19 +20,19 @@ app.get("/api/trending", async (req, res) => {
 
     if (!json || !json.data) return res.json([]);
 
-    const mapped = json.data.map((track) => ({
-      id: track.id,
-      title: track.title,
-      artist: track.user?.name || "Unknown Artist",
-      genre: track.genre || "Unknown",
-      audio_url: `https://audius-discovery-1.cultur3stake.com/v1/tracks/${track.id}/stream`,
-      artwork: track.artwork?.['480x480'] || track.artwork?.['150x150'] || "",
+    const tracks = json.data.map(t => ({
+      id: t.id,
+      title: t.title,
+      artist: t.user?.name || "Unknown Artist",
+      genre: t.genre || "Unknown",
+      artwork: t.artwork?.['150x150'] || t.artwork?.['480x480'] || "",
+      audio_url: `https://audius-discovery-2.cdn.audius.co/v1/tracks/${t.id}/stream`,
     }));
 
-    res.json(mapped);
-  } catch (error) {
-    console.error("❌ Trending route error:", error);
-    res.status(500).json({ error: "Failed to fetch trending tracks" });
+    res.json(tracks);
+  } catch (err) {
+    console.error("❌ Trending fetch failed:", err);
+    res.status(500).json({ error: "Failed to fetch trending songs" });
   }
 });
 // ✅ Base route for testing
