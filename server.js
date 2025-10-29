@@ -11,45 +11,28 @@ app.use(cors());
 const PORT = process.env.PORT || 3001;
 
 // ✅ Fetch songs from Audius API (no API key needed)
-app.get("/api/music", async (req, res) => {
+app.get("/api/trending", async (req, res) => {
   try {
-    const query = (req.query.q || "chill").toLowerCase();
-    console.log(`🔍 Fetching from Audius (stable node) for query: ${query}`);
+    console.log("🔥 Fetching trending songs...");
+    const url = "https://discoveryprovider.audius.co/v1/tracks/trending?app_name=MusicMania&limit=20";
+    const response = await fetch(url);
+    const json = await response.json();
 
-    // Use a stable discovery node (works 24/7)
-    const endpoint = `https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(
-      query
-    )}&only_downloadable=false&app_name=MusicMania`;
+    if (!json || !json.data) return res.json([]);
 
-    const response = await fetch(endpoint);
-    const data = await response.json();
+    const mapped = json.data.map((track) => ({
+      id: track.id,
+      title: track.title,
+      artist: track.user?.name || "Unknown Artist",
+      genre: track.genre || "Unknown",
+      audio_url: `https://audius-discovery-1.cultur3stake.com/v1/tracks/${track.id}/stream`,
+      artwork: track.artwork?.['480x480'] || track.artwork?.['150x150'] || "",
+    }));
 
-    if (!data?.data?.length) {
-      console.warn("⚠️ No Audius tracks found for:", query);
-      return res.json([]); // return empty array if nothing found
-    }
-
-    // ✅ Clean + playable data
-    const tracks = data.data
-      .filter((t) => t.id && t.title && t.user)
-      .map((t) => ({
-        id: t.id,
-        title: t.title,
-        artist: t.user.name,
-        genre: t.genre || "Unknown",
-        image_url:
-          t.artwork?.["480x480"] ||
-          t.artwork?.["150x150"] ||
-          "https://via.placeholder.com/300x300?text=No+Cover",
-        // Force correct stream endpoint (Audius CDN)
-        audio_url: `https://audius-discovery-2.cdn.audius.co/v1/tracks/${t.id}/stream`,
-      }));
-
-    console.log(`✅ Found ${tracks.length} tracks for "${query}"`);
-    res.json(tracks.slice(0, 20));
+    res.json(mapped);
   } catch (error) {
-    console.error("❌ Audius fetch error:", error);
-    res.status(500).json({ error: "Server error fetching Audius tracks" });
+    console.error("❌ Trending route error:", error);
+    res.status(500).json({ error: "Failed to fetch trending tracks" });
   }
 });
 // ✅ Base route for testing
