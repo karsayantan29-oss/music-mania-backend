@@ -40,33 +40,32 @@ app.get("/api/trending", async (req, res) => {
 // 🔍 SEARCH SONGS — Free Music Archive fallback
 app.get("/api/music", async (req, res) => {
   try {
-    const query = req.query.q?.toLowerCase() || "chill";
-    console.log(`🎧 Searching FMA for "${query}"...`);
+    const query = req.query.q?.trim();
+    if (!query) return res.json({ tracks: [] });
 
-    const response = await fetch("https://freemusicarchive.org/featured.json");
-    const data = await response.json();
+    console.log(`🎧 Searching Audius for "${query}"...`);
 
-    if (!data?.aTracks) {
+    const url = `https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(query)}&app_name=MusicMania&limit=20`;
+    const response = await fetch(url);
+    const json = await response.json();
+
+    if (!json?.data?.length) {
       return res.json({ tracks: [] });
     }
 
-    const filtered = data.aTracks
-      .filter(t => t.track_title.toLowerCase().includes(query))
-      .slice(0, 15)
-      .map(t => ({
-        title: t.track_title,
-        artist: t.artist_name,
-        image: t.track_image_file || "https://cdn-icons-png.flaticon.com/512/727/727245.png",
-        audio_url: t.track_file_url
-      }));
+    const results = json.data.map(t => ({
+      title: t.title || "Unknown",
+      artist: t.user?.name || "Unknown Artist",
+      image: t.artwork?.['150x150'] || "https://cdn-icons-png.flaticon.com/512/727/727245.png",
+      audio_url: `https://audius-discovery-2.cdn.audius.co/v1/tracks/${t.id}/stream`
+    }));
 
-    res.json({ tracks: filtered });
+    res.json({ tracks: results });
   } catch (err) {
-    console.error("❌ Search fetch failed:", err);
+    console.error("❌ Search failed:", err);
     res.status(500).json({ error: "Search failed" });
   }
 });
-
 app.get("/", (req, res) => {
   res.send("🎧 Music Mania Backend is Running");
 });
