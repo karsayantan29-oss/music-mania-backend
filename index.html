@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎵 Music Mania</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      transition: 0.3s;
+    }
+    :root {
+      --bg: #f5f5f5;
+      --text: #222;
+      --card: #fff;
+    }
+    body.dark-mode {
+      --bg: #181818;
+      --text: #f5f5f5;
+      --card: #242424;
+    }
+    header {
+      background: var(--card);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    h1 { margin: 0; font-size: 1.5rem; }
+    input {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      cursor: pointer;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      background: #ff4757;
+      color: white;
+    }
+    #trendingGrid, #favoritesGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 15px;
+      padding: 20px;
+    }
+    .track-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .track-card img {
+      width: 100%;
+      border-radius: 10px;
+    }
+    .track-title {
+      font-weight: bold;
+      margin-top: 6px;
+      font-size: 0.95rem;
+    }
+    .track-artist {
+      color: gray;
+      font-size: 0.85rem;
+    }
+    #playerSection {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: var(--card);
+      box-shadow: 0 -3px 10px rgba(0,0,0,0.2);
+      display: none;
+      align-items: center;
+      padding: 10px;
+      gap: 10px;
+    }
+    #playerSection.active { display: flex; }
+    #playerSection img { width: 60px; height: 60px; border-radius: 10px; }
+    #progressBar { flex: 1; }
+    #themeToggle {
+      background: none;
+      color: var(--text);
+      border: none;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎶 Music Mania</h1>
+    <div>
+      <input id="searchInput" type="text" placeholder="Search songs..." />
+      <button onclick="searchMusic()">🔍</button>
+      <button onclick="showFavorites()">❤️</button>
+      <button onclick="showSearch()">🏠</button>
+      <button id="themeToggle">🌓</button>
+    </div>
+  </header>
+
+  <section id="favoritesSection" style="display:none;">
+    <h2 style="padding-left:20px;">❤️ Favorites</h2>
+    <div id="favoritesGrid"></div>
+  </section>
+
+  <section id="trendingSection">
+    <h2 style="padding-left:20px;">🔥 Trending</h2>
+    <div id="trendingGrid"></div>
+  </section>
+
+  <section id="playerSection">
+    <img id="currentTrackImage" src="" alt="">
+    <div>
+      <div id="currentTrackTitle">Title</div>
+      <div id="currentTrackArtist">Artist</div>
+      <input type="range" id="progressBar" min="0" max="100" value="0" oninput="seekTrack(this.value)">
+    </div>
+    <button onclick="prevTrack()">⏮️</button>
+    <button id="playPauseBtn" onclick="togglePlayPause()">▶️</button>
+    <button onclick="nextTrack()">⏭️</button>
+    <input type="range" min="0" max="100" value="100" oninput="adjustVolume(this.value)" style="width:80px;">
+  </section>
+
+  <script>
+    let player = new Audio();
+    let allTracks = [];
+    let currentIndex = 0;
+    let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
+
+    const trendingGrid = document.getElementById("trendingGrid");
+    const favoritesGrid = document.getElementById("favoritesGrid");
+    const playerSection = document.getElementById("playerSection");
+    const currentTrackImage = document.getElementById("currentTrackImage");
+    const currentTrackTitle = document.getElementById("currentTrackTitle");
+    const currentTrackArtist = document.getElementById("currentTrackArtist");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const progressBar = document.getElementById("progressBar");
+
+    // 🌗 Theme Toggle
+    document.getElementById("themeToggle").addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      localStorage.setItem("theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
+    });
+    if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark-mode");
+
+    // 🎧 Load Trending from Audius
+    async function loadTrending() {
+      trendingGrid.innerHTML = "<p>🎧 Loading trending songs from Audius...</p>";
+      try {
+        const res = await fetch("https://discoveryprovider.audius.co/v1/tracks/trending?app_name=MusicMania");
+        const json = await res.json();
+        const tracks = json.data || [];
+        const mapped = tracks.slice(0, 12).map(t => ({
+          title: t.title,
+          artist: t.user?.name || "Unknown Artist",
+          artwork: t.artwork?.['480x480'] || t.artwork?.['150x150'] || "https://cdn-icons-png.flaticon.com/512/727/727245.png",
+          audio_url: `https://audius-discovery-1.cdn.audius.co/v1/tracks/${t.id}/stream`
+        }));
+        allTracks = mapped;
+        displayTracks(mapped, trendingGrid);
+      } catch (err) {
+        trendingGrid.innerHTML = "<p>⚠️ Failed to load songs from Audius.</p>";
+      }
+    }
+
+    // 🔍 Search
+    async function searchMusic() {
+      const query = document.getElementById("searchInput").value.trim();
+      if (!query) return;
+      trendingGrid.innerHTML = "<p>🔍 Searching Audius...</p>";
+      try {
+        const res = await fetch(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(query)}&app_name=MusicMania`);
+        const json = await res.json();
+        const tracks = json.data || [];
+        const mapped = tracks.slice(0, 12).map(t => ({
+          title: t.title,
+          artist: t.user?.name || "Unknown Artist",
+          artwork: t.artwork?.['480x480'] || "https://cdn-icons-png.flaticon.com/512/727/727245.png",
+          audio_url: `https://audius-discovery-1.cdn.audius.co/v1/tracks/${t.id}/stream`
+        }));
+        allTracks = mapped;
+        displayTracks(mapped, trendingGrid);
+      } catch {
+        trendingGrid.innerHTML = "<p>⚠️ Search failed.</p>";
+      }
+    }
+
+    // 🖼️ Display tracks
+    function displayTracks(tracks, container) {
+      container.innerHTML = tracks.map((t, i) => {
+        const fav = favorites.some(f => f.audio_url === t.audio_url);
+        return `
+          <div class="track-card">
+            <div onclick="playTrack('${t.audio_url}','${t.title}','${t.artist}','${t.artwork}')" class="track-image">
+              <img src="${t.artwork}" alt="${t.title}">
+            </div>
+            <div class="track-title">${t.title}</div>
+            <div class="track-artist">${t.artist}</div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;">
+              <button onclick="playTrack('${t.audio_url}','${t.title}','${t.artist}','${t.artwork}')">▶️</button>
+              <button onclick="toggleFavorite(event,'${t.title}','${t.artist}','${t.artwork}','${t.audio_url}')" style="background:none;border:none;font-size:1.3rem;cursor:pointer;">
+                ${fav ? "❤️" : "🤍"}
+              </button>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    // ▶️ Player
+    function playTrack(url, title, artist, artwork) {
+      player.src = url;
+      player.play();
+      currentTrackImage.src = artwork;
+      currentTrackTitle.textContent = title;
+      currentTrackArtist.textContent = artist;
+      playerSection.classList.add("active");
+      playPauseBtn.textContent = "⏸️";
+      requestAnimationFrame(updateProgress);
+    }
+    function togglePlayPause() { if (player.paused) { player.play(); playPauseBtn.textContent = "⏸️"; } else { player.pause(); playPauseBtn.textContent = "▶️"; } }
+    function adjustVolume(v) { player.volume = v / 100; }
+    function updateProgress() {
+      if (!isNaN(player.duration) && player.duration > 0) {
+        progressBar.value = (player.currentTime / player.duration) * 100;
+      }
+      requestAnimationFrame(updateProgress);
+    }
+    function seekTrack(v) { if (!isNaN(player.duration)) player.currentTime = (v / 100) * player.duration; }
+    function prevTrack() { if (currentIndex > 0) { currentIndex--; const t = allTracks[currentIndex]; playTrack(t.audio_url, t.title, t.artist, t.artwork); } }
+    function nextTrack() { if (currentIndex < allTracks.length - 1) { currentIndex++; const t = allTracks[currentIndex]; playTrack(t.audio_url, t.title, t.artist, t.artwork); } }
+
+    // ❤️ Favorites
+    function toggleFavorite(e, title, artist, artwork, audio_url) {
+      e.stopPropagation();
+      const track = { title, artist, artwork, audio_url };
+      const idx = favorites.findIndex(f => f.audio_url === audio_url);
+      if (idx >= 0) {
+        favorites.splice(idx, 1);
+      } else {
+        favorites.push(track);
+      }
+      localStorage.setItem("favorites", JSON.stringify(favorites));
+      if (document.getElementById("favoritesSection").style.display === "block") {
+        showFavorites();
+      } else {
+        displayTracks(allTracks, trendingGrid);
+      }
+    }
+
+    function showFavorites() {
+      document.getElementById("favoritesSection").style.display = "block";
+      displayTracks(favorites, favoritesGrid);
+    }
+
+    function showSearch() {
+      document.getElementById("favoritesSection").style.display = "none";
+    }
+
+    loadTrending();
+  </script>
+</body>
+</html>
+
+
